@@ -7,11 +7,15 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/jackc/pgx/v5"
+	repo "github.com/techies/ecom/internal/adapters/postgres/sqlc"
+	"github.com/techies/ecom/internal/orders"
 	"github.com/techies/ecom/internal/products"
 )
 
 type application struct {
 	config config
+	db     *pgx.Conn
 }
 
 type config struct {
@@ -40,10 +44,20 @@ func (app *application) mount() http.Handler {
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("all good! i guess"))
 	})
-	productService := products.NewService()
+	productService := products.NewService(repo.New(app.db))
 	productHandler := products.NewHandler(productService)
 
+	// product routes
 	r.Get("/products", productHandler.ListProductHandler)
+	r.Get("/products/:id", productHandler.GetProductHandler)
+	r.Post("/products", productHandler.CreateProductHandler)
+	r.Put("/products/:id", productHandler.UpdateProductHandler)
+	r.Delete("/products/:id", productHandler.DeleteProductHandler)
+
+	orderService := orders.NewService(nil)
+	orderHandler := orders.NewHandler(orderService)
+	// order routes
+	r.Post("/order", orderHandler.PlaceOrder)
 
 	return r
 }

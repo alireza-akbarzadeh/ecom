@@ -9,6 +9,93 @@ import (
 	"context"
 )
 
+const createOrder = `-- name: CreateOrder :one
+INSERT INTO orders (customer_id, created_at, updated_at)
+VALUES ($1, NOW(), NOW())
+RETURNING id, customer_id, created_at, updated_at
+`
+
+func (q *Queries) CreateOrder(ctx context.Context, customerID int64) (Order, error) {
+	row := q.db.QueryRow(ctx, createOrder, customerID)
+	var i Order
+	err := row.Scan(
+		&i.ID,
+		&i.CustomerID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const createOrderItem = `-- name: CreateOrderItem :one
+INSERT INTO order_items (order_id, product_id, quantity, price_cents, created_at, updated_at)
+VALUES ($1, $2, $3, $4, NOW(), NOW())
+RETURNING id, order_id, product_id, quantity, price_cents, created_at, updated_at
+`
+
+type CreateOrderItemParams struct {
+	OrderID    int64 `json:"order_id"`
+	ProductID  int64 `json:"product_id"`
+	Quantity   int32 `json:"quantity"`
+	PriceCents int32 `json:"price_cents"`
+}
+
+func (q *Queries) CreateOrderItem(ctx context.Context, arg CreateOrderItemParams) (OrderItem, error) {
+	row := q.db.QueryRow(ctx, createOrderItem,
+		arg.OrderID,
+		arg.ProductID,
+		arg.Quantity,
+		arg.PriceCents,
+	)
+	var i OrderItem
+	err := row.Scan(
+		&i.ID,
+		&i.OrderID,
+		&i.ProductID,
+		&i.Quantity,
+		&i.PriceCents,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const createProduct = `-- name: CreateProduct :one
+INSERT INTO products (name, price_in_cents, quantity, created_at, updated_at)
+VALUES ($1, $2, $3, NOW(), NOW())
+RETURNING id, name, price_in_cents, quantity, created_at, updated_at
+`
+
+type CreateProductParams struct {
+	Name         string `json:"name"`
+	PriceInCents int32  `json:"price_in_cents"`
+	Quantity     int32  `json:"quantity"`
+}
+
+func (q *Queries) CreateProduct(ctx context.Context, arg CreateProductParams) (Product, error) {
+	row := q.db.QueryRow(ctx, createProduct, arg.Name, arg.PriceInCents, arg.Quantity)
+	var i Product
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.PriceInCents,
+		&i.Quantity,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const deleteProduct = `-- name: DeleteProduct :exec
+DELETE FROM products
+WHERE id = $1
+`
+
+func (q *Queries) DeleteProduct(ctx context.Context, id int64) error {
+	_, err := q.db.Exec(ctx, deleteProduct, id)
+	return err
+}
+
 const findProductByID = `-- name: FindProductByID :one
 SELECT id, name, price_in_cents, quantity, created_at, updated_at FROM products
 WHERE id = $1
@@ -57,4 +144,37 @@ func (q *Queries) ListProducts(ctx context.Context) ([]Product, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateProduct = `-- name: UpdateProduct :one
+UPDATE products
+SET name = $1, price_in_cents = $2, quantity = $3, updated_at = NOW()
+WHERE id = $4
+RETURNING id, name, price_in_cents, quantity, created_at, updated_at
+`
+
+type UpdateProductParams struct {
+	Name         string `json:"name"`
+	PriceInCents int32  `json:"price_in_cents"`
+	Quantity     int32  `json:"quantity"`
+	ID           int64  `json:"id"`
+}
+
+func (q *Queries) UpdateProduct(ctx context.Context, arg UpdateProductParams) (Product, error) {
+	row := q.db.QueryRow(ctx, updateProduct,
+		arg.Name,
+		arg.PriceInCents,
+		arg.Quantity,
+		arg.ID,
+	)
+	var i Product
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.PriceInCents,
+		&i.Quantity,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }

@@ -29,6 +29,7 @@ func main() {
 
 	api := application{
 		config: cfg,
+		db:     db,
 	}
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	slog.SetDefault(logger)
